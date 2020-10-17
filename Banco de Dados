@@ -5,23 +5,81 @@ CREATE TABLE Cliente ( --cod_cliente, nome, cpf, telefone, dt_nasc
 	telefone bigint,
 	dt_nasc date --not null -- ano-mês-dia
 );
-drop table cliente cascade;
 
-select * from cliente;
-select * from visao_cliente
+CREATE TABLE Vendedor( --COD_VENDEDOR, COD_CATEGORIA, NOME, CPF, TELEFONE
+	cod_vendedor serial not null,
+	cod_categoria int not null,
+	nome varchar(125),
+	cpf bigint unique,
+	telefone bigint,
+	dt_nasc date,
+	constraint priVend primary key(cod_vendedor),
+	constraint stngVendCat foreign key(cod_categoria) references categoria(cod_categoria)
+);
 
---==========================================TRIGGER CLIENTE======================================================--
---== INSTEAD OF evita que coloque na visão, e bota diretamente na tabela da visão ==--
--- Toda vez que for feito um insert na view de cliente, o trigger dispara.
+CREATE TABLE Categoria( --COD_CATEGORIA, NOME, DESCRICAO, VALOR_SALARIO, COMISSAO
+	cod_categoria serial not null,
+	nome varchar(125) unique,
+	descricao varchar(500),
+	valor_salario float,
+	comissao float,
+	constraint priCat primary key(cod_categoria)
+);
 
---DROP TRIGGER trig_cliente ON cliente CASCADE;
-CREATE or REPLACE VIEW visao_cliente AS SELECT * FROM Cliente;
-CREATE TRIGGER Trig_Cliente INSTEAD OF INSERT ON visao_cliente FOR EACH ROW EXECUTE PROCEDURE checa_cliente();
+--==================================== TRIGGER VENDEDOR/CATEGORIA ==========================================--
+-- TRIGGER DA TABELA VENDEDOR
+CREATE OR REPLACE VIEW Visao_Vendedor AS SELECT * FROM Vendedor;
+CREATE TRIGGER Trig_Vendedor INSTEAD OF INSERT OR UPDATE ON Visao_Vendedor FOR EACH ROW EXECUTE PROCEDURE Checa_Vendedor();
 
+CREATE OR REPLACE FUNCTION Checa_Vendedor() RETURNS TRIGGER AS 
+$$
+	BEGIN
+		IF (new.nome is NULL or new.cpf is NULL) THEN
+			RAISE EXCEPTION 'Você inseriu valores nulos. Tente novamente.';
+			
+		ELSEIF Data_Valida(new.dt_nasc) is false THEN
+			RAISE EXCEPTION 'Você inseriu uma data inválida. Tente novamente.';
+		
+		ELSEIF Confere_CPF(new.cpf) is false THEN
+			RAISE EXCEPTION 'Você inseriu um CPF inválido.';
+		
+		ELSEIF Confere_Telefone(new.telefone) is false THEN
+			RAISE EXCEPTION 'Você inseriu um número de telefone inválido.';
+			
+		ELSE
+			INSERT INTO Vendedor VALUES (default, new.cod_categoria, new.nome, new.cpf, new.telefone, new.dt_nasc);
+			RETURN NEW;
+		END IF;
+		RETURN NULL; 
+	END;
+$$ LANGUAGE plpgsql;
+
+-- TRIGGER DA TABELA CATEGORIA
+CREATE OR REPLACE VIEW Visao_Categoria AS SELECT * FROM Categoria;
+CREATE TRIGGER Trig_Categoria INSTEAD OF INSERT OR UPDATE ON Visao_Categoria FOR EACH ROW EXECUTE PROCEDURE Checa_Categoria();
+
+CREATE OR REPLACE FUNCTION Checa_Categoria() RETURNS TRIGGER AS 
+$$
+	BEGIN
+		IF new.nome is NULL THEN
+			RAISE EXCEPTION 'Dados inseridos em nome são inválidos. Tente novamente.';
+			
+		ELSEIF new.valor_salario < 0 or new.valor_salario is NULL THEN
+			RAISE EXCEPTION 'Dados inseridos em salário são inválidos. Tente novamente.';
+	
+		ELSE 
+			INSERT INTO Categoria VALUES(DEFAULT, new.nome, new.descricao, new.valor_salario, new.comissao);
+			RETURN NEW;
+		END IF;
+		RETURN NULL; 
+	END;
+$$ LANGUAGE plpgsql;
+
+--TRIGGER DA TABELA CLIENTE
 CREATE OR REPLACE FUNCTION checa_cliente() RETURNS TRIGGER AS 
 $$
 	BEGIN
-		--Verifica se os dados que serão inseridos são nulos.
+
 		IF (new.nome is NULL or new.cpf is NULL) THEN
 			RAISE EXCEPTION 'Você inseriu valores nulos. Tente novamente.';
 			
@@ -42,8 +100,22 @@ $$
 	END;
 $$ LANGUAGE plpgsql;
 
---==========================================FUNCTION CLIENTE======================================================--
---INSERT FUNCTION
+--==================================== FUNCTIONS VENDEDOR/CATEGORIA ==========================================--
+--INSERT FUNCTION VENDEDOR;
+CREATE OR REPLACE FUNCTION Realiza_Insercao(cod_categoria int, nome varchar(125), cpf bigint, telefone bigint, dt_nasc date) RETURNS Void AS $$
+BEGIN 
+	INSERT INTO Visao_Vendedor VALUES(DEFAULT, $1, $2, $3, $4, $5);
+END;
+$$ LANGUAGE 'plpgsql';
+
+--INSERT FUNCTION CATEGORIA;
+CREATE OR REPLACE FUNCTION Realiza_Insercao(nome varchar(125), descricao varchar(500), valor_salario float, comissao float) RETURNS Void AS $$
+BEGIN 
+	INSERT INTO Visao_Categoria VALUES(DEFAULT, $1, $2, $3, $4);
+END;
+$$ LANGUAGE 'plpgsql';
+
+--INSERT FUNCTION CLIENTE;
 CREATE OR REPLACE FUNCTION Realiza_Insercao(nome varchar(125), cpf bigint, telefone int, dt_nasc date) RETURNS Void AS $$
 BEGIN 
 	INSERT INTO Visao_Cliente VALUES(DEFAULT, $1, $2, $3, $4);
@@ -85,4 +157,6 @@ BEGIN
 END;
 $$ LANGUAGE 'plpgsql';
 
---===============================================================================================================--
+
+
+
