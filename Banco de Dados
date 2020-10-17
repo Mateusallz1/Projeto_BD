@@ -3,7 +3,7 @@ CREATE TABLE Cliente ( --cod_cliente, nome, cpf, telefone, dt_nasc
 	nome varchar(125),
 	cpf bigint unique,
 	telefone bigint,
-	dt_nasc date --not null -- ano-mês-dia
+	dt_nasc date --ano-mês-dia
 );
 
 CREATE TABLE Vendedor( --COD_VENDEDOR, COD_CATEGORIA, NOME, CPF, TELEFONE
