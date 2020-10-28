@@ -7,6 +7,11 @@ CREATE TABLE Fornecedor(
     constraint priForn primary key(cod_fornecedor)
 );
 
+drop table fornecedor cascade;
+select * from fornecedor
+
+select realiza_insercao('Reddragon', 11234567890, 'Mucambas', 924252627);
+select realiza_insercao('Razer', 21234567890, 'Santa Sofia', 926252627);
 
 --======================================= TRIGGER'S FORNECEDOR ========================================================--
 -- TRIGGER FORNECEDOR

@@ -3,20 +3,31 @@ CREATE TABLE Cliente ( --cod_cliente, nome, cpf, telefone, dt_nasc
 	nome varchar(125),
 	cpf bigint unique,
 	telefone bigint,
-	dt_nasc date --ano-mês-dia
+	dt_nasc date, --ano-mês-dia
 	constraint priVend primary key(cod_cliente)
 );
 
-CREATE TABLE Vendedor( --COD_VENDEDOR, COD_CATEGORIA, NOME, CPF, TELEFONE
+SELECT * FROM CATEGORIA
+
+SELECT REALIZA_INSERCAO('Anastácia', 1111111111, 998674004, '1980-12-01')
+SELECT REALIZA_INSERCAO('João', 2222222222, 998685005, '1990-01-24')
+SELECT REALIZA_INSERCAO('José', 3333333333, 998686006, '1980-02-13')
+
+CREATE TABLE Vendedor( --COD_VENDEDOR, COD_CATEGORIA, NOME, CPF, TELEFONE, DT_NASC
 	cod_vendedor serial not null,
 	cod_categoria int not null,
 	nome varchar(125),
 	cpf bigint unique,
 	telefone bigint,
 	dt_nasc date,
-	constraint priVend primary key(cod_vendedor),
+	constraint priVende primary key(cod_vendedor),
 	constraint stngVendCat foreign key(cod_categoria) references categoria(cod_categoria)
 );
+SELECT * FROM VENDEDOR
+
+SELECT REALIZA_INSERCAO('Estagiário', 'André', 1111111112, 988817654, '1960-12-01')
+SELECT REALIZA_INSERCAO('Junior', 'Carlos', 1111111113, 981402526, '1988-10-02')
+SELECT REALIZA_INSERCAO('Master', 'Ricardo', 1111111114, 981405658, '1970-02-25')
 
 CREATE TABLE Categoria( --COD_CATEGORIA, NOME, DESCRICAO, VALOR_SALARIO, COMISSAO
 	cod_categoria serial not null,
@@ -27,37 +38,25 @@ CREATE TABLE Categoria( --COD_CATEGORIA, NOME, DESCRICAO, VALOR_SALARIO, COMISSA
 	constraint priCat primary key(cod_categoria)
 );
 
+SELECT * FROM CATEGORIA
+
+SELECT REALIZA_INSERCAO('Estagiário', 'Funcionário que ingressou na empresa para estagiar.', 900, 0)
+SELECT REALIZA_INSERCAO('Junior', 'Funcionário recém contratado.', 1300, 1)
+SELECT REALIZA_INSERCAO('Master', 'FUncionário que já vendeu mais de R$ 20,000.', 2000, 2)
+
 CREATE TABLE Produto( --NOME, QUANTIDADE, PRECO
 	cod_produto serial not null,
-	nome varchar(125	), 
+	nome varchar(125), 
 	quantidade int, 
 	preco float, 
 	constraint priProd primary key(cod_produto)
 );
 
-CREATE TABLE Venda( --cod_venda, cod_vendedor, cod_cliente, quant_itens_vendidos, valor_total_vendido, data_venda, status_venda
-	cod_venda serial not null,
-	cod_vendedor int not null,
-	cod_cliente int not null,
-	quant_itens_vendidos int,
-	valor_total_vendido float,
-	data_venda timestamp,
-	status_venda boolean,
-	constraint priVenda primary key(cod_venda),
-	constraint stngVendaVendedor foreign key(cod_vendedor) references Vendedor(cod_vendedor),
-	constraint stngVendaCliente foreign key(cod_cliente) references Cliente(cod_cliente)
-);
+SELECT * FROM PRODUTO
 
-CREATE TABLE Item_Venda( --cod_produto, cod_venda, valor_total, quant_vendida, data_venda
-	cod_produto int not null,
-	cod_venda int not null,
-	valor_total float,
-	quant_vendida int not null,
-	data_venda timestamp,
-	constraint priItemVenda primary key(cod_produto, cod_venda),
-	constraint stngItemVendaProd foreign key(cod_produto) references Produto(cod_produto),
-	constraint stngItemVendaVenda foreign key(cod_venda) references Venda(cod_venda)
-);
+SELECT REALIZA_INSERCAO('Teclado', 15, 300)
+SELECT REALIZA_INSERCAO('Mouse', 30, 150)
+SELECT REALIZA_INSERCAO('Headphone', 25, 350)
 
 --==================================== TRIGGER'S ==========================================--
 -- TRIGGER DA TABELA VENDEDOR
@@ -165,19 +164,25 @@ CREATE OR REPLACE FUNCTION Realiza_Insercao(varchar(125), varchar(125), bigint, 
 DECLARE
 	cod_cat int;
 BEGIN
-	SELECT cod_categoria INTO cod_cat FROM Categoria WHERE nome ilike $1;
+	cod_cat = retorna_cod_cat($1);
 	INSERT INTO Visao_Vendedor VALUES(DEFAULT, cod_cat, $2, $3, $4, $5);
-	RAISE NOTICE 'O Vendedor % foi inserido com sucesso!', $1;
-
 END;
+$$ LANGUAGE 'plpgsql';
+
+-- Retorna o código da categoria dado um nome como argumento;
+CREATE OR REPLACE FUNCTION Retorna_Cod_Cat(varchar(125)) RETURNS Int AS $$
+DECLARE
+	cod_cat int;
+BEGIN
+	SELECT cod_categoria INTO cod_cat FROM Categoria WHERE nome ilike $1;
+	RETURN cod_cat;
+END;									   
 $$ LANGUAGE 'plpgsql';
 
 --INSERT FUNCTION CATEGORIA; 
 CREATE OR REPLACE FUNCTION Realiza_Insercao(varchar(125), varchar(500), float, float) RETURNS Void AS $$
 BEGIN 
 	INSERT INTO Visao_Categoria VALUES(DEFAULT, $1, $2, $3, $4);
-	RAISE NOTICE 'A Categoria % foi inserida com sucesso!', $1;
-
 END;
 $$ LANGUAGE 'plpgsql';
 
@@ -185,8 +190,6 @@ $$ LANGUAGE 'plpgsql';
 CREATE OR REPLACE FUNCTION Realiza_Insercao(varchar(125), bigint, int, date) RETURNS Void AS $$
 BEGIN 
 	INSERT INTO Visao_Cliente VALUES(DEFAULT, $1, $2, $3, $4);
-	RAISE NOTICE 'O Cliente % foi inserido com sucesso!', $1;
-
 END;
 $$ LANGUAGE 'plpgsql';
 
@@ -194,15 +197,8 @@ $$ LANGUAGE 'plpgsql';
 CREATE OR REPLACE FUNCTION Realiza_Insercao(varchar(125), int, float) RETURNS Void AS $$
 BEGIN 
 	INSERT INTO Visao_Produto VALUES(DEFAULT, $1, $2, $3);
-	RAISE NOTICE 'O Produto % foi inserido com sucesso!', $1;
-
 END;
 $$ LANGUAGE 'plpgsql';
-
---DELETE PRODUTO;
-CREATE OR REPLACE FUNCTION Exclui_Produto(varchar(125)) RETURNS Voids AS $$
-
-$$ LANGUAGE 'plpgssql';
 
 --CONFERE CPF;
 CREATE FUNCTION Confere_CPF(CPF bigint) RETURNS BOOLEAN AS $$
@@ -233,55 +229,6 @@ BEGIN
 		RETURN false;
 	ELSE
 		RETURN true;
-	END IF;
-END;
-$$ LANGUAGE 'plpgsql';
-
---REALIZA VENDA (nome_vendedor, nome_cliente, nome_produto)
-CREATE OR REPLACE FUNCTION Realiza_Venda(varchar(125), varchar(125), varchar(125)) RETURNS VOID AS $$
-DECLARE --nome vendedor, nome cliente, nome produto
-	codig_cli int;
-	codig_vende int;
-	codig_prod int;
-	codig_venda int;
-	valor_produto float;
-	quant int;
-	stts_venda boolean;
-	
-BEGIN
-	SELECT cod_venda INTO codig_venda FROM Cliente NATURAL JOIN Venda WHERE nome ilike $2;
-	SELECT cod_vendedor INTO codig_vende FROM Vendedor WHERE nome ILIKE $1;
-	SELECT cod_cliente INTO codig_cli FROM Cliente WHERE nome ILIKE $2;
-	SELECT cod_produto INTO codig_prod FROM Produto WHERE nome ILIKE $3;
-	SELECT preco INTO valor_produto FROM Produto WHERE nome ILIKE $3;
-	SELECT cod_venda INTO codig_venda FROM Cliente NATURAL JOIN Venda WHERE cod_cliente = codig_cli;
-	SELECT quantidade INTO quant FROM Produto WHERE nome ILIKE $3;
-	SELECT status_venda INTO stts_venda FROM Venda WHERE cod_venda = codig_venda;
-	
-	IF quant > 0 THEN
-		UPDATE Produto SET quantidade = quantidade - 1 WHERE cod_produto = codig_prod;
-
-		IF (codig_venda) in(SELECT cod_venda FROM Venda) and stts_venda is true THEN
-			UPDATE Venda SET valor_total_vendido = valor_total_vendido + valor_produto WHERE cod_venda = codig_venda;
-			INSERT INTO Item_venda VALUES(cod_prod, codig_venda, valor_total, 1, localtimestamp);
-		ELSE
-			INSERT INTO Venda VALUES(default, codig_vende, codig_cli, 1, valor_produto, localtimestamp, true);
-			SELECT cod_venda INTO codig_venda FROM Cliente NATURAL JOIN Venda WHERE cod_cliente = codig_cli;
-			INSERT INTO Item_Venda VALUES(codig_prod, codig_venda, valor_produto, 1, localtimestamp);
-		END IF;
-	ELSE 
-		RAISE NOTICE 'O produto requerido não pode ser vendido pois sua quantidade é 0.';
-	END IF;
-END;
-$$ LANGUAGE 'plpgsql';
-
--- Finaliza Venda (cod_venda)
-CREATE OR REPLACE FUNCTION Finaliza_Venda(int) RETURNS Void AS $$
-BEGIN
-	IF $1 in(SELECT cod_venda FROM Venda)THEN
-		UPDATE Venda SET status_venda = false WHERE cod_venda = $1;
-	ELSE
-		RAISE NOTICE 'Código da venda não foi encontrado.';
 	END IF;
 END;
 $$ LANGUAGE 'plpgsql';

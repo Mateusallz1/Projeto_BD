@@ -1,6 +1,6 @@
 CREATE TABLE Produto( --NOME, QUANTIDADE, PRECO
 	cod_produto serial not null,
-	nome varchar(250), -- não pode ser nulo
+	nome varchar(125), -- não pode ser nulo
 	quantidade int, -- não pode ser negativa
 	preco float, -- não pode ser negativo
 	constraint priProd primary key(cod_produto)
@@ -30,8 +30,8 @@ END;
 $$ LANGUAGE 'plpgsql';
 
 --==================================== FUNCTIONS  ==========================================--
---INSERT FUNCTION CATEGORIA; 
-CREATE OR REPLACE FUNCTION Realiza_Insercao(varchar(250), int, float) RETURNS Void AS $$
+--INSERT FUNCTION PRODUTO; 
+CREATE OR REPLACE FUNCTION Realiza_Insercao(varchar(125), int, float) RETURNS Void AS $$
 BEGIN 
 	INSERT INTO Visao_Produto VALUES(DEFAULT, $1, $2, $3);
 END;

@@ -2,7 +2,7 @@ CREATE TABLE Vendedor( --COD_VENDEDOR, COD_CATEGORIA, NOME, CPF, TELEFONE, DT_NA
 	cod_vendedor serial not null,
 	cod_categoria int not null,
 	nome varchar(125),
-	cpf bigint unique,
+	cpf bigint unique, -- 14
 	telefone bigint,
 	dt_nasc date,
 	constraint priVend primary key(cod_vendedor),
