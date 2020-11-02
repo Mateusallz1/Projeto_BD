@@ -5,6 +5,11 @@ CREATE TABLE Produto_Fornecido(
     constraint stngFornProd foreign key(cod_produto) references,
     constraint stngFornForn foreign key(cod_fornecedor) references
 );
+select fornecimento('RAZER','MAO', 100)
+select fornecimento('RED DRAGON')
+select * from fornecedor
+select * from produto
+select * from produto_fornecido
 
 --==================================== FUNCTION PROD_FORNECIDO ========================================================--
 -- RECEBE O NOME DO FORNECEDOR, PRODUTO, E O VALOR UNITÁRIO; CHECA SE OS DOIS EXISTEM; FAZ A INSERÇÃO NA TABELA Produto_Fornecido.
@@ -15,18 +20,17 @@ DECLARE
     cod_prod int;
 BEGIN
 
-    SELECT cod_fornecedor INTO cod_forn FROM Fornecedor WHERE nome ILIKE $1
+    SELECT cod_fornecedor INTO cod_forn FROM Fornecedor WHERE nome ILIKE $1;
     SELECT cod_produto INTO cod_prod FROM Produto WHERE nome ILIKE $2;
 
-    IF cod_forn NOT IN(SELECT cod_fornecedor FROM Fornecedor) THEN
-        RAISE NOTICE 'Código do fornecedor não encontrado.';
-    
-    ELSE IF cod_prod NOT IN(SELECT cod_produto FROM Produto) THEN
-        RAISE NOTICE 'Código do produto não encontrado.';
-    
+    IF cod_forn IN(SELECT cod_fornecedor FROM Fornecedor) THEN
+		IF cod_prod IN(SELECT cod_produto FROM Produto) THEN
+			INSERT INTO Produto_Fornecido VALUES(cod_forn, cod_prod, $3);
+		ELSE
+			RAISE NOTICE 'Código do produto não encontrado.';
+		END IF;
     ELSE
-        INSERT INTO Produto_Fornecido VALUES(cod_forn, cod_prod, $3);
-
+        RAISE NOTICE 'Código do fornecedor não encontrado.';
     END IF;
 
 END;

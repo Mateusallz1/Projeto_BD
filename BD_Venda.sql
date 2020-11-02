@@ -58,11 +58,11 @@ BEGIN
 			INSERT INTO Item_venda VALUES(cod_prod, codig_venda, valor_total, 1, localtimestamp);
 		ELSE
 			INSERT INTO Venda VALUES(default, codig_vende, codig_cli, 1, valor_produto, localtimestamp, true);
-			SELECT cod_venda INTO codig_venda FROM Cliente NATURAL JOIN Venda WHERE cod_cliente = codig_cli;
 			INSERT INTO Item_Venda VALUES(codig_prod, codig_venda, valor_produto, 1, localtimestamp);
+			
 		END IF;
 	ELSE 
-		RAISE EXCEPTION 'A quantidade do produto requerido é zero.';
+		RAISE NOTICE 'A quantidade do produto requerido é zero.';
 	END IF;
 END;
 $$ LANGUAGE 'plpgsql';
