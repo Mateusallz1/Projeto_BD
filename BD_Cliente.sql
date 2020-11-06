@@ -43,6 +43,7 @@ $$ LANGUAGE plpgsql;
 CREATE OR REPLACE FUNCTION Realiza_Insercao(nome varchar(125), cpf bigint, telefone int, dt_nasc date) RETURNS Void AS $$
 BEGIN 
 	INSERT INTO Visao_Cliente VALUES(DEFAULT, $1, $2, $3, $4);
+	RAISE NOTICE 'Cliente Inserido com sucesso!';
 END;
 $$ LANGUAGE 'plpgsql';
 

@@ -3,7 +3,7 @@ CREATE TABLE Cliente ( --cod_cliente, nome, cpf, telefone, dt_nasc
 	nome varchar(125),
 	cpf bigint unique,
 	telefone bigint,
-	dt_nasc date --ano-mês-dia
+	dt_nasc date, --ano-mês-dia
 	constraint priVend primary key(cod_cliente)
 );
 
@@ -14,7 +14,7 @@ CREATE TABLE Vendedor( --COD_VENDEDOR, COD_CATEGORIA, NOME, CPF, TELEFONE
 	cpf bigint unique,
 	telefone bigint,
 	dt_nasc date,
-	constraint priVend primary key(cod_vendedor),
+	constraint priVende primary key(cod_vendedor),
 	constraint stngVendCat foreign key(cod_categoria) references categoria(cod_categoria)
 );
 
@@ -94,12 +94,24 @@ CREATE TABLE Produto_Fornecido(
     cod_fornecedor int not null,
     cod_produto int not null,
     valor_unitario float,
-    constraint stngFornProd foreign key(cod_produto) references,
-    constraint stngFornForn foreign key(cod_fornecedor) references
+    constraint stngFornProd foreign key(cod_produto) references Produto(cod_produto),
+    constraint stngFornForn foreign key(cod_fornecedor) references Fornecedor(cod_fornecedor)
 );
+--================================== Restrições e Privilégios ==================================--
+CREATE ROLE Gerente;
+CREATE ROLE Vendedor;
+CREATE ROLE Estagiario;
 
---==================================== TRIGGER'S ==========================================--
--- TRIGGER DA TABELA VENDEDOR
+CREATE ROLE Cassia LOGIN PASSWORD '123' IN ROLE Gerente;
+CREATE ROLE Andre LOGIN PASSWORD '123' IN ROLE Vendedor;
+CREATE ROLE Carlos LOGIN PASSWORD '123' IN ROLE Vendedor;
+CREATE ROLE Junin LOGIN PASSWORD '123' IN ROLE Estagiario;
+
+GRANT INSERT, UPDATE, SELECT ON Venda, Item_venda, Compra, Item_compra TO Gerente;
+GRANT ALL PRIVILEGES ON ALL FUNCTIONS TO Gerente;
+
+--================================== Trigger'S ==================================--
+-- Trigger da tabela vendedor.
 CREATE OR REPLACE VIEW Visao_Vendedor AS SELECT * FROM Vendedor;
 CREATE TRIGGER Trig_Vendedor INSTEAD OF INSERT OR UPDATE ON Visao_Vendedor FOR EACH ROW EXECUTE PROCEDURE Checa_Vendedor();
 
@@ -119,7 +131,12 @@ BEGIN
 		RAISE EXCEPTION 'Você inseriu um número de telefone inválido.';
 			
 	ELSE
-		INSERT INTO Vendedor VALUES (default, new.cod_categoria, new.nome, new.cpf, new.telefone, new.dt_nasc);
+		IF new.nome in(SELECT nome FROM Vendedor) THEN
+			RAISE EXCEPTION 'O vendedor já está cadastrado no BD.';
+		ELSE
+			INSERT INTO Vendedor VALUES (default, new.cod_categoria, new.nome, new.cpf, new.telefone, new.dt_nasc);
+			RAISE NOTICE 'O Vendedor % foi cadastrado com sucesso!', new.nome;
+		END IF;
 		RETURN NEW;
 	END IF;
 	RETURN NULL; 
@@ -140,7 +157,11 @@ BEGIN
 		RAISE EXCEPTION 'Dados inseridos em salário são inválidos. Tente novamente.';
 	
 	ELSE
-		INSERT INTO Categoria VALUES(DEFAULT, new.nome, new.descricao, new.valor_salario, new.comissao);
+		IF new.nome in(SELECT nome FROM Categoria) THEN
+			RAISE EXCEPTION 'A categoria já está cadastrada no BD.';
+		ELSE
+			INSERT INTO Categoria VALUES(DEFAULT, new.nome, new.descricao, new.valor_salario, new.comissao);
+		END IF;
 		RETURN NEW;
 	END IF;
 	RETURN NULL; 
@@ -168,7 +189,12 @@ BEGIN
 		RAISE EXCEPTION 'Você inseriu um número de telefone inválido.';
 			
 	ELSE
-		INSERT INTO cliente VALUES (default, new.nome, new.cpf, new.telefone, new.dt_nasc);
+		IF new.nome in(SELECT nome FROM Cliente) THEN
+			RAISE EXCEPTION 'O cliente já está cadastado no BD.';
+		ELSE
+			INSERT INTO cliente VALUES (default, new.nome, new.cpf, new.telefone, new.dt_nasc);
+			RAISE NOTICE 'O cliente % foi cadastrado com sucesso!', new.nome;
+		END IF;
 		RETURN NEW;
 	END IF;
 	RETURN NULL; --new é por linha, null é por instrução.
@@ -191,7 +217,12 @@ BEGIN
 		RAISE EXCEPTION 'Você inseriu um preço negativo. Tente novamente.';
 		
 	ELSE
-		INSERT INTO Produto VALUES(DEFAULT, new.nome, new.quantidade, new.preco);
+		IF new.nome in(SELECT Nome FROM Produto) THEN
+			RAISE EXCEPTION 'O Produto já está cadastrado no BD.';
+		ELSE
+			INSERT INTO Produto VALUES(DEFAULT, new.nome, new.quantidade, new.preco);
+			RAISE NOTICE 'O Produto % foi cadastrado com Sucesso!', new.nome;
+		END IF;
 		RETURN NEW;
 	END IF;
 	RETURN NULL;
@@ -215,7 +246,11 @@ BEGIN
 		RAISE EXCEPTION 'Você inseriu um número de telefone inválido.';
 			
 	ELSE
-		INSERT INTO Fornecedor VALUES(default, new.nome, new.cnpj, new.localizacao, new.telefone);
+		IF new.nome in(SELECT Nome FROM Fornecedor) THEN
+			RAISE EXCEPTION 'O Fornecedor já está cadastrado no BD!';
+		ELSE
+			INSERT INTO Fornecedor VALUES(default, new.nome, new.cnpj, new.localizacao, new.telefone);
+		END IF;
 		RETURN NEW;
 	END IF;
 	RETURN NULL; 
@@ -223,28 +258,32 @@ END;
 $$ LANGUAGE plpgsql;
 
 --==================================== FUNCTIONS  ==========================================--
---INSERT FUNCTION VENDEDOR; 
+-- Inserção Vendedor(Categoria, Nome, CPF, Telefone, Data de Nascimento);
 CREATE OR REPLACE FUNCTION Realiza_Insercao(varchar(125), varchar(125), bigint, bigint, date) RETURNS Void AS $$
 DECLARE
 	cod_cat int;
 BEGIN
 	SELECT cod_categoria INTO cod_cat FROM Categoria WHERE nome ilike $1;
-	INSERT INTO Visao_Vendedor VALUES(DEFAULT, cod_cat, $2, $3, $4, $5);
-	RAISE NOTICE 'O Vendedor % foi inserido com sucesso!', $1;
+	IF cod_cat in(SELECT cod_categoria FROM Categoria) THEN
+		INSERT INTO Visao_Vendedor VALUES(DEFAULT, cod_cat, $2, $3, $4, $5);
+		RAISE NOTICE 'O Vendedor % foi inserido com sucesso!', $1;
+
+	ELSE
+		RAISE NOTICE 'A categoria % não foi encontrada. Tente novamente.', $1;
 
 END;
 $$ LANGUAGE 'plpgsql';
 
---INSERT FUNCTION CATEGORIA; 
+-- Inserção Categoria(Nome, Descrição, Valor do Salário, Comissão);
 CREATE OR REPLACE FUNCTION Realiza_Insercao(varchar(125), varchar(500), float, float) RETURNS Void AS $$
-BEGIN 
+BEGIN
 	INSERT INTO Visao_Categoria VALUES(DEFAULT, $1, $2, $3, $4);
 	RAISE NOTICE 'A Categoria % foi inserida com sucesso!', $1;
 
 END;
 $$ LANGUAGE 'plpgsql';
 
---INSERT FUNCTION CLIENTE; 
+-- Inserção Cliente(Nome, CPF, Telefone, Data de Nascimento);
 CREATE OR REPLACE FUNCTION Realiza_Insercao(varchar(125), bigint, int, date) RETURNS Void AS $$
 BEGIN 
 	INSERT INTO Visao_Cliente VALUES(DEFAULT, $1, $2, $3, $4);
@@ -262,10 +301,11 @@ BEGIN
 END;
 $$ LANGUAGE 'plpgsql';
 
--- INSERT FUNCTION FORNECEDOR
+-- Inserção Fornecedor(Nome, CNPJ, Localização, Telefone)
 CREATE OR REPLACE FUNCTION Realiza_Insercao(varchar(125), bigint, varchar(500), bigint) RETURNS Void AS $$
 BEGIN
 	INSERT INTO Visao_Fornecedor VALUES(default, $1, $2, $3, $4);
+	RAISE NOTICE 'O Fornecedor % foi inserido com sucesso!', $1;
 END;
 $$ LANGUAGE 'plpgsql';
 
@@ -324,9 +364,9 @@ DECLARE --nome vendedor, nome cliente, nome produto
 	stts_venda boolean;
 	
 BEGIN
-	SELECT cod_venda INTO codig_venda FROM Cliente NATURAL JOIN Venda WHERE nome ilike $2;
 	SELECT cod_vendedor INTO codig_vende FROM Vendedor WHERE nome ILIKE $1;
 	SELECT cod_cliente INTO codig_cli FROM Cliente WHERE nome ILIKE $2;
+	SELECT cod_venda INTO codig_venda FROM Cliente NATURAL JOIN Venda WHERE nome ilike $2;
 	SELECT cod_produto INTO codig_prod FROM Produto WHERE nome ILIKE $3;
 	SELECT preco INTO valor_produto FROM Produto WHERE nome ILIKE $3;
 	SELECT cod_venda INTO codig_venda FROM Cliente NATURAL JOIN Venda WHERE cod_cliente = codig_cli;
@@ -339,10 +379,14 @@ BEGIN
 		IF (codig_venda) in(SELECT cod_venda FROM Venda) and stts_venda is true THEN
 			UPDATE Venda SET valor_total_vendido = valor_total_vendido + valor_produto WHERE cod_venda = codig_venda;
 			INSERT INTO Item_venda VALUES(cod_prod, codig_venda, valor_total, 1, localtimestamp);
-		ELSE
+
+		ELSE IF codig_venda not in(SELECT codig_venda FROM Venda) or cod_comp is NULL or codig_venda in(SELECT codig_venda FROM Venda) AND status_venda = false THEN
 			INSERT INTO Venda VALUES(default, codig_vende, codig_cli, 1, valor_produto, localtimestamp, true);
 			SELECT cod_venda INTO codig_venda FROM Cliente NATURAL JOIN Venda WHERE cod_cliente = codig_cli;
 			INSERT INTO Item_Venda VALUES(codig_prod, codig_venda, valor_produto, 1, localtimestamp);
+		ELSE 
+			RAISE NOTICE 'A Venda não foi realizada com sucesso. Tente novamente!';
+
 		END IF;
 	ELSE 
 		RAISE NOTICE 'O produto requerido não pode ser vendido pois sua quantidade é 0.';
@@ -486,7 +530,3 @@ BEGIN
 
 END;
 $$ LANGUAGE 'plpgsql';
-
-
-
-
