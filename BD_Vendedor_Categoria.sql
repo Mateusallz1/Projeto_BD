@@ -96,3 +96,120 @@ BEGIN
 	INSERT INTO Visao_Categoria VALUES(DEFAULT, $1, $2, $3, $4);
 END;
 $$ LANGUAGE 'plpgsql';
+
+select salario_funcionario('cassia', 'novembro');
+
+-- Retorna o salário de um funcionário relacionado ao mês que foi requerido. (Nome do Funcionário, nome do mês);
+CREATE OR REPLACE FUNCTION Salario_Funcionario(varchar(125), varchar(20)) RETURNS float AS $$
+DECLARE
+	salario float;
+	mes int;
+    cod_vend int;
+
+BEGIN
+    SELECT cod_vendedor INTO cod_vend FROM Vendedor WHERE nome ILIKE $1;
+
+	IF cod_vend IN(SELECT cod_vendedor FROM Vendedor WHERE nome ILIKE $1) THEN
+        IF $2 ILIKE 'janeiro' THEN
+            mes = 1;
+            salario = Salario_Final($1, mes, cod_vend);
+            RETURN salario;
+
+        ELSEIF $2 ILIKE 'fevereiro' THEN
+            mes = 2;
+            salario = Salario_Final($1, mes, cod_vend);
+            RETURN salario;
+
+        ELSEIF $2 ILIKE 'março' THEN
+            mes = 3;
+            salario = Salario_Final($1, mes, cod_vend);
+            RETURN salario;
+
+        ELSEIF $2 ILIKE 'abril' THEN
+            mes = 4;
+            salario = Salario_Final($1, mes, cod_vend);
+            RETURN salario;
+
+        ELSEIF $2 ILIKE 'maio' THEN
+            mes = 5;
+            salario = Salario_Final($1, mes, cod_vend);
+            RETURN salario;
+
+        ELSEIF $2 ILIKE 'junho' THEN
+            mes = 6;
+            salario = Salario_Final($1, mes, cod_vend);
+            RETURN salario;
+
+        ELSEIF $2 ILIKE 'julho' THEN
+            mes = 7;
+            salario = Salario_Final($1, mes, cod_vend);
+            RETURN salario;
+
+        ELSEIF $2 ILIKE 'agosto' THEN
+            mes = 8;
+            salario = Salario_Final($1, mes, cod_vend);
+            RETURN salario;
+
+        ELSEIF $2 ILIKE 'setembro' THEN
+            mes = 9;
+            salario = Salario_Final($1, mes, cod_vend);
+            RETURN salario;
+        
+        ELSEIF $2 ILIKE 'outubro' THEN
+            mes = 10;
+            salario = Salario_Final($1, mes, cod_vend);
+            RETURN salario;
+
+        ELSEIF $2 ILIKE 'novembro' THEN
+            mes = 11;
+            salario = Salario_Final($1, mes, cod_vend);
+            RETURN salario;
+
+        ELSEIF $2 ILIKE 'dezembro' THEN
+            mes = 12;
+            salario = Salario_Final($1, mes, cod_vend);
+            RETURN salario;
+        
+        ELSE
+            RAISE NOTICE 'O mês % não foi identificado. Confira os dados inseridos e tente novamente.', $2;
+        END IF;
+    ELSE 
+        RAISE NOTICE 'O Vendedor % não está inserido no BD.', $1;
+    END IF;
+END;
+$$ LANGUAGE 'plpgsql';
+
+-- Calcula o valor do salario + a comissão; (Nome do Funcionário, mês, Código do Vendedor);
+CREATE OR REPLACE FUNCTION Salario_Final(varchar(125), int, int) RETURNS FLOAT AS $$
+DECLARE
+	quant_vend float;
+	comissao_vend float;
+	salario float;
+    mes int;
+
+BEGIN
+    mes = $2;
+	SELECT comissao INTO comissao_vend FROM Categoria C JOIN Vendedor V ON v.cod_categoria = c.cod_categoria WHERE cod_vendedor = $3;
+    SELECT SUM(valor_total_vendido) INTO quant_vend FROM venda WHERE cod_vendedor = $3 AND EXTRACT(MONTH FROM data_venda) = mes GROUP BY cod_vendedor;
+    
+    salario = salario_da_categoria($1);
+    salario = salario + (quant_vend * (comissao_vend / 100));
+    RETURN salario;
+END;
+$$ LANGUAGE 'plpgsql';
+
+-- SELECT comissao INTO comissao_final FROM Categoria NATURAL JOIN Vendedor WHERE cod_vendedor = cod_vend;
+-- SELECT nome, salario FROM Vendedor NATURAL JOIN Venda WHERE extract(month from data_venda) = $1 and extract(year from data_venda) = extract(year from localtimestamp);
+select * from venda
+
+-- Retorna o valor do salário de determinado funcionário. (Nome do Funcionário);
+CREATE OR REPLACE FUNCTION Salario_da_Categoria(varchar(125)) RETURNS FLOAT AS $$
+DECLARE 
+	salario float;
+	cod_vend int;
+BEGIN
+	SELECT cod_vendedor INTO cod_vend FROM Vendedor WHERE nome ilike $1;
+	SELECT valor_salario INTO salario FROM Categoria C JOIN Vendedor V ON v.cod_categoria = c.cod_categoria WHERE cod_vendedor = cod_vend;
+	RETURN salario;
+END;
+$$ LANGUAGE 'plpgsql';

@@ -132,7 +132,7 @@ BEGIN
 			
 	ELSE
 		IF new.nome in(SELECT nome FROM Vendedor) THEN
-			RAISE EXCEPTION 'O vendedor já está cadastrado no BD.';
+			RAISE EXCEPTION 'O Vendedor % já está cadastrado no BD.', new.nome;
 		ELSE
 			INSERT INTO Vendedor VALUES (default, new.cod_categoria, new.nome, new.cpf, new.telefone, new.dt_nasc);
 			RAISE NOTICE 'O Vendedor % foi cadastrado com sucesso!', new.nome;
@@ -158,9 +158,10 @@ BEGIN
 	
 	ELSE
 		IF new.nome in(SELECT nome FROM Categoria) THEN
-			RAISE EXCEPTION 'A categoria já está cadastrada no BD.';
+			RAISE EXCEPTION 'A Categoria % já está cadastrada no BD.', new.nome;
 		ELSE
 			INSERT INTO Categoria VALUES(DEFAULT, new.nome, new.descricao, new.valor_salario, new.comissao);
+			RAISE NOTICE 'A Categoria % foi cadastrada com sucesso!', new.nome;
 		END IF;
 		RETURN NEW;
 	END IF;
@@ -190,7 +191,7 @@ BEGIN
 			
 	ELSE
 		IF new.nome in(SELECT nome FROM Cliente) THEN
-			RAISE EXCEPTION 'O cliente já está cadastado no BD.';
+			RAISE EXCEPTION 'O Cliente % já está cadastado no BD.', new.nome;
 		ELSE
 			INSERT INTO cliente VALUES (default, new.nome, new.cpf, new.telefone, new.dt_nasc);
 			RAISE NOTICE 'O cliente % foi cadastrado com sucesso!', new.nome;
@@ -218,7 +219,7 @@ BEGIN
 		
 	ELSE
 		IF new.nome in(SELECT Nome FROM Produto) THEN
-			RAISE EXCEPTION 'O Produto já está cadastrado no BD.';
+			RAISE EXCEPTION 'O Produto % já está cadastrado no BD.', new.nome;
 		ELSE
 			INSERT INTO Produto VALUES(DEFAULT, new.nome, new.quantidade, new.preco);
 			RAISE NOTICE 'O Produto % foi cadastrado com Sucesso!', new.nome;
@@ -247,9 +248,10 @@ BEGIN
 			
 	ELSE
 		IF new.nome in(SELECT Nome FROM Fornecedor) THEN
-			RAISE EXCEPTION 'O Fornecedor já está cadastrado no BD!';
+			RAISE EXCEPTION 'O Fornecedor % já está cadastrado no BD.', new.nome;
 		ELSE
 			INSERT INTO Fornecedor VALUES(default, new.nome, new.cnpj, new.localizacao, new.telefone);
+			RAISE NOTICE 'O Fornecedor % foi cadastrado com sucesso!', new.nome;
 		END IF;
 		RETURN NEW;
 	END IF;
@@ -285,7 +287,8 @@ $$ LANGUAGE 'plpgsql';
 
 -- Inserção Cliente(Nome, CPF, Telefone, Data de Nascimento);
 CREATE OR REPLACE FUNCTION Realiza_Insercao(varchar(125), bigint, int, date) RETURNS Void AS $$
-BEGIN 
+BEGIN
+	IF $1 NOT IN(SELECT nome FROM Cliente)
 	INSERT INTO Visao_Cliente VALUES(DEFAULT, $1, $2, $3, $4);
 	RAISE NOTICE 'O Cliente % foi inserido com sucesso!', $1;
 
@@ -352,9 +355,9 @@ BEGIN
 END;
 $$ LANGUAGE 'plpgsql';
 
---REALIZA VENDA (nome_vendedor, nome_cliente, nome_produto)
+-- Realiza Venda(Nome do Fornecedor, Nome do Cliente, Nome do Produto);
 CREATE OR REPLACE FUNCTION Realiza_Venda(varchar(125), varchar(125), varchar(125)) RETURNS VOID AS $$
-DECLARE --nome vendedor, nome cliente, nome produto
+DECLARE 
 	codig_cli int;
 	codig_vende int;
 	codig_prod int;
@@ -380,7 +383,7 @@ BEGIN
 			UPDATE Venda SET valor_total_vendido = valor_total_vendido + valor_produto WHERE cod_venda = codig_venda;
 			INSERT INTO Item_venda VALUES(cod_prod, codig_venda, valor_total, 1, localtimestamp);
 
-		ELSE IF codig_venda not in(SELECT codig_venda FROM Venda) or cod_comp is NULL or codig_venda in(SELECT codig_venda FROM Venda) AND status_venda = false THEN
+		ELSEIF codig_venda not in(SELECT codig_venda FROM Venda) or codig_venda is NULL or codig_venda in(SELECT codig_venda FROM Venda) AND stts_venda = false THEN
 			INSERT INTO Venda VALUES(default, codig_vende, codig_cli, 1, valor_produto, localtimestamp, true);
 			SELECT cod_venda INTO codig_venda FROM Cliente NATURAL JOIN Venda WHERE cod_cliente = codig_cli;
 			INSERT INTO Item_Venda VALUES(codig_prod, codig_venda, valor_produto, 1, localtimestamp);
@@ -394,7 +397,7 @@ BEGIN
 END;
 $$ LANGUAGE 'plpgsql';
 
--- Finaliza Venda (cod_venda)
+-- Finaliza Venda (Código da Venda);
 CREATE OR REPLACE FUNCTION Finaliza_Venda(int) RETURNS Void AS $$
 BEGIN
 	IF $1 in(SELECT cod_venda FROM Venda)THEN
@@ -405,7 +408,7 @@ BEGIN
 END;
 $$ LANGUAGE 'plpgsql';
 
--- REALIZA COMPRA (NOME VENDEDOR, NOME PRODUTO, NOME FORNECEDOR, QUANTIDADE)
+-- Realiza Compra(Nome do Vendedor, Nome do Produto, Nome do Fornecedor, Quantidade);
 CREATE OR REPLACE FUNCTION Realiza_Compra(varchar(125), varchar(125), varchar(125), int) RETURNS Void AS $$
 DECLARE
     cod_vend int;
@@ -445,7 +448,7 @@ BEGIN
 END;
 $$ LANGUAGE 'plpgsql';
 
--- REALIZA COMPRA SEM FORNECEDOR(NOME VENDEDOR, NOME PRODUTO, QUANTIDADE)
+-- Realiza Compra(Nome do Vendedor, Nome do Produto, Quantidade);
 CREATE OR REPLACE FUNCTION Realiza_Compra(varchar(125), varchar(125), int) RETURNS Void AS $$
 DECLARE
     cod_vend int;
@@ -528,5 +531,116 @@ BEGIN
         RAISE NOTICE 'Código do fornecedor não encontrado.';
     END IF;
 
+END;
+$$ LANGUAGE 'plpgsql';
+
+-- Retorna o salário de um funcionário relacionado ao mês que foi requerido. (Nome do Funcionário, nome do mês);
+CREATE OR REPLACE FUNCTION Salario_Funcionario(varchar(125), varchar(20)) RETURNS float AS $$
+DECLARE
+	salario float;
+	mes int;
+    cod_vend int;
+
+BEGIN
+    SELECT cod_vendedor INTO cod_vend FROM Vendedor WHERE nome ILIKE $1;
+
+	IF cod_vend IN(SELECT cod_vendedor FROM Vendedor WHERE nome ILIKE $1) THEN
+        IF $2 ILIKE 'janeiro' THEN
+            mes = 1;
+            salario = Salario_Final($1, mes, cod_vend);
+            RETURN salario;
+
+        ELSEIF $2 ILIKE 'fevereiro' THEN
+            mes = 2;
+            salario = Salario_Final($1, mes, cod_vend);
+            RETURN salario;
+
+        ELSEIF $2 ILIKE 'março' THEN
+            mes = 3;
+            salario = Salario_Final($1, mes, cod_vend);
+            RETURN salario;
+
+        ELSEIF $2 ILIKE 'abril' THEN
+            mes = 4;
+            salario = Salario_Final($1, mes, cod_vend);
+            RETURN salario;
+
+        ELSEIF $2 ILIKE 'maio' THEN
+            mes = 5;
+            salario = Salario_Final($1, mes, cod_vend);
+            RETURN salario;
+
+        ELSEIF $2 ILIKE 'junho' THEN
+            mes = 6;
+            salario = Salario_Final($1, mes, cod_vend);
+            RETURN salario;
+
+        ELSEIF $2 ILIKE 'julho' THEN
+            mes = 7;
+            salario = Salario_Final($1, mes, cod_vend);
+            RETURN salario;
+
+        ELSEIF $2 ILIKE 'agosto' THEN
+            mes = 8;
+            salario = Salario_Final($1, mes, cod_vend);
+            RETURN salario;
+
+        ELSEIF $2 ILIKE 'setembro' THEN
+            mes = 9;
+            salario = Salario_Final($1, mes, cod_vend);
+            RETURN salario;
+        
+        ELSEIF $2 ILIKE 'outubro' THEN
+            mes = 10;
+            salario = Salario_Final($1, mes, cod_vend);
+            RETURN salario;
+
+        ELSEIF $2 ILIKE 'novembro' THEN
+            mes = 11;
+            salario = Salario_Final($1, mes, cod_vend);
+            RETURN salario;
+
+        ELSEIF $2 ILIKE 'dezembro' THEN
+            mes = 12;
+            salario = Salario_Final($1, mes, cod_vend);
+            RETURN salario;
+        
+        ELSE
+            RAISE NOTICE 'O mês % não foi identificado. Confira os dados inseridos e tente novamente.', $2;
+        END IF;
+    ELSE 
+        RAISE NOTICE 'O Funcionário % não está inserido no BD.', $1;
+    END IF;
+END;
+$$ LANGUAGE 'plpgsql';
+
+-- Calcula o valor do salario + a comissão; (Nome do Funcionário, mês, Código do Funcionário);
+CREATE OR REPLACE FUNCTION Salario_Final(varchar(125), int, int) RETURNS FLOAT AS $$
+DECLARE
+	quant_vend float;
+	comissao_vend float;
+	salario float;
+    mes int;
+
+BEGIN
+    mes = $2;
+	SELECT comissao INTO comissao_vend FROM Categoria C JOIN Vendedor V ON v.cod_categoria = c.cod_categoria WHERE cod_vendedor = $3;
+    SELECT SUM(valor_total_vendido) INTO quant_vend FROM venda WHERE cod_vendedor = $3 AND EXTRACT(MONTH FROM data_venda) = mes GROUP BY cod_vendedor;
+    
+    salario = salario_da_categoria($1);
+    salario = salario + (quant_vend * (comissao_vend / 100));
+    RETURN salario;
+END;
+$$ LANGUAGE 'plpgsql';
+
+-- Retorna o valor do salário de determinado funcionário. (Nome do Funcionário);
+CREATE OR REPLACE FUNCTION Salario_da_Categoria(varchar(125)) RETURNS FLOAT AS $$
+DECLARE 
+	salario float;
+	cod_vend int;
+BEGIN
+	SELECT cod_vendedor INTO cod_vend FROM Vendedor WHERE nome ilike $1;
+	SELECT valor_salario INTO salario FROM Categoria C JOIN Vendedor V ON v.cod_categoria = c.cod_categoria WHERE cod_vendedor = cod_vend;
+	RETURN salario;
 END;
 $$ LANGUAGE 'plpgsql';
