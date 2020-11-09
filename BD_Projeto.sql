@@ -107,8 +107,28 @@ CREATE ROLE Andre LOGIN PASSWORD '123' IN ROLE Vendedor;
 CREATE ROLE Carlos LOGIN PASSWORD '123' IN ROLE Vendedor;
 CREATE ROLE Junin LOGIN PASSWORD '123' IN ROLE Estagiario;
 
-GRANT INSERT, UPDATE, SELECT ON Venda, Item_venda, Compra, Item_compra TO Gerente;
-GRANT ALL PRIVILEGES ON ALL FUNCTIONS TO Gerente;
+GRANT INSERT, UPDATE, SELECT ON Cliente, Visao_Cliente, Vendedor, Visao_Vendedor, Categoria, Visao_Categoria, Venda, Item_Venda, Compra, Item_Compra, Fornecedor, Visao_Fornecedor, Produto, Visao_Produto, Produto_Fornecido TO Gerente;
+GRANT INSERT, UPDATE, SELECT ON Venda, Item_Venda, Compra, Item_Compra TO Vendedor;
+GRANT SELECT ON Visao_Cliente, Visao_Vendedor, Visao_Categoria, Visao_Produto Venda, Compra TO Estagiario;
+
+GRANT USAGE ON SEQUENCE cliente_cod_cliente_seq, vendedor_cod_vendedor_seq, produto_cod_produto_seq, fornecedor_cod_fornecedor_seq TO Gerente; -- Inserção Cliente, Inserção Vendedor, Inserção Produto, Inserção Fornecedor;
+GRANT USAGE ON SEQUENCE item_venda_cod_item_venda_seq, item_compra_cod_item_compra_seq TO Gerente, Vendedor -- Realiza Venda, Realiza Compra
+
+GRANT SELECT ON Cliente, Visao_Cliente TO Gerente, Vendedor, Estagiario;
+
+GRANT ALL PRIVILEGES ON FUNCTION 
+Realiza_Insercao(varchar(125), varchar(125), bigint, bigint, date),
+Realiza_Insercao(varchar(125), varchar(500), float, float),
+Realiza_Insercao(varchar(125), bigint, int, date),
+Realiza_Insercao(varchar(125), int, float),
+Realiza_Insercao(varchar(125), bigint, varchar(500), bigint) TO Gerente;
+
+GRANT ALL PRIVILEGES ON FUNCTION 
+Realiza_Venda(varchar(125), varchar(125), varchar(125)),
+Finaliza_Venda(int),
+Realiza_Compra(varchar(125), varchar(125), varchar(125), int),
+Realiza_Compra(varchar(125), varchar(125), int), Melhor_Preco(int),
+Finaliza_Compra(int) TO Vendedor;
 
 --================================== Trigger'S ==================================--
 -- Trigger da tabela vendedor.
@@ -295,7 +315,7 @@ BEGIN
 END;
 $$ LANGUAGE 'plpgsql';
 
---INSERT FUNCTION PRODUTO; 
+-- Inserção Produto(Nome, Quantidade, Preço);
 CREATE OR REPLACE FUNCTION Realiza_Insercao(varchar(125), int, float) RETURNS Void AS $$
 BEGIN 
 	INSERT INTO Visao_Produto VALUES(DEFAULT, $1, $2, $3);
@@ -381,12 +401,12 @@ BEGIN
 
 		IF (codig_venda) in(SELECT cod_venda FROM Venda) and stts_venda is true THEN
 			UPDATE Venda SET valor_total_vendido = valor_total_vendido + valor_produto WHERE cod_venda = codig_venda;
-			INSERT INTO Item_venda VALUES(cod_prod, codig_venda, valor_total, 1, localtimestamp);
+			INSERT INTO Item_venda VALUES(DEFAULT, codig_prod, codig_venda, valor_produto, 1, localtimestamp);
 
 		ELSEIF codig_venda not in(SELECT codig_venda FROM Venda) or codig_venda is NULL or codig_venda in(SELECT codig_venda FROM Venda) AND stts_venda = false THEN
 			INSERT INTO Venda VALUES(default, codig_vende, codig_cli, 1, valor_produto, localtimestamp, true);
 			SELECT cod_venda INTO codig_venda FROM Cliente NATURAL JOIN Venda WHERE cod_cliente = codig_cli;
-			INSERT INTO Item_Venda VALUES(codig_prod, codig_venda, valor_produto, 1, localtimestamp);
+			INSERT INTO Item_Venda VALUES(DEFAULT, codig_prod, codig_venda, valor_produto, 1, localtimestamp);
 		ELSE 
 			RAISE NOTICE 'A Venda não foi realizada com sucesso. Tente novamente!';
 
