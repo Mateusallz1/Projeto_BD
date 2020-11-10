@@ -2,9 +2,10 @@ CREATE TABLE Produto_Fornecido(
     cod_fornecedor int not null,
     cod_produto int not null,
     valor_unitario float,
-    constraint stngFornProd foreign key(cod_produto) references,
-    constraint stngFornForn foreign key(cod_fornecedor) references
+    constraint stngFornProd foreign key(cod_produto) references Produto(cod_produto),
+    constraint stngFornForn foreign key(cod_fornecedor) references Fornecedor(cod_fornecedor)
 );
+
 select fornecimento('RAZER','MAO', 100)
 select fornecimento('RED DRAGON')
 select * from fornecedor
